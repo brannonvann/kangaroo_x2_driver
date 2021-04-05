@@ -28,7 +28,7 @@ inline const char* toString(KangarooError err)
 class KangarooX2 : public hardware_interface::RobotHW
 {
 public:
-  KangarooX2(string port, unsigned long baud) : 
+  KangarooX2(string port, unsigned long baud, int ticksPerWheelRev) : 
     serial_port(port, baud, serial::Timeout::simpleTimeout(1000)),
     stream(serial_port),
     K(stream),
@@ -41,7 +41,7 @@ public:
     //then calling 1,getp over simple serial
     //TODO: implement scaling through KangarooChannel::units call
     //  also implement optional reversal of motors
-    ticksToRadians = 2*M_PI * 10 / 2995; 
+    ticksToRadians = 2*M_PI / ticksPerWheelRev; 
     radiansToTicks = 1/ticksToRadians;
     
     pos_[0] = 0.0; pos_[1] = 0.0;
@@ -143,11 +143,14 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "kangaroo_x2");
   ros::NodeHandle nh;
  
- //TODO: read port and baud as parameters
-  string port = "/dev/ttyUSB0";
-  unsigned long baud = 9600;
+  string port;
+  nh.getParam("/serialPort", port);
+  double baud;
+  nh.getParam("/baudRate", baud);
+  int ticksPerWheelRev;
+  nh.getParam("/ticksPerWheelRev", ticksPerWheelRev);
 
-  KangarooX2 robot(port, baud);
+  KangarooX2 robot(port, baud, ticksPerWheelRev );
   ROS_INFO_STREAM("period: " << robot.getPeriod().toSec());
   controller_manager::ControllerManager cm(&robot, nh);
 

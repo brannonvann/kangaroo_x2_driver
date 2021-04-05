@@ -3,6 +3,10 @@
     <arg name="model" default="$(find kangaroo_x2_driver)/urdf/kangaroo_diff_drive.xacro"/>
     <arg name="cmd_vel_topic" default="cmd_vel"/>
 
+    <param name = "serialPort" value ="/dev/ttyUSB0" type = "str"/>
+    <param name = "baudRate" value = "9600" type = "double"/>
+    <param name = "ticksPerWheelRev" value = "12000" type = "int"/>
+
     <rosparam file="$(find kangaroo_x2_driver)/config/diff_drive_control.yaml" command="load"/>
 
     <node pkg="kangaroo_x2_driver" type="kangaroo_driver_node" name="kangaroo_node" respawn="true" respawn_delay="10">
