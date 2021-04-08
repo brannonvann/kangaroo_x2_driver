@@ -159,11 +159,11 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     string port;
-    nh.getParam("/serialPort", port);
+    nh.getParam("/kangaroo_x2_driver/serialPort", port);
     double baud;
-    nh.getParam("/baudRate", baud);
+    nh.getParam("/kangaroo_x2_driver/baudRate", baud);
     int ticksPerWheelRev;
-    nh.getParam("/ticksPerWheelRev", ticksPerWheelRev);
+    nh.getParam("/kangaroo_x2_driver/ticksPerWheelRev", ticksPerWheelRev);
 
     KangarooX2 robot(port, baud, ticksPerWheelRev);
     ROS_INFO_STREAM("period: " << robot.getPeriod().toSec());
