@@ -18,6 +18,11 @@ USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "Kangaroo.h"
 
+KangarooMonitor::KangarooMonitor()
+{
+  _state.channel = 0; _state.monitorCode = 0;
+}
+
 KangarooMonitor::KangarooMonitor(KangarooChannel* channel, uint32_t monitorCode)
 {
   _state.channel = channel; _state.monitorCode = monitorCode;
@@ -30,7 +35,7 @@ KangarooStatus KangarooMonitor::status() const
 
 boolean KangarooMonitor::valid() const
 {
-  return _state.monitorCode == _state.channel->_monitorCode;
+  return _state.channel && _state.monitorCode == _state.channel->_monitorCode;
 }
 
 KangarooMonitor KangarooMonitor::update()

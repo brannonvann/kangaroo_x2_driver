@@ -1,6 +1,6 @@
 /*
 Arduino Library for Kangaroo
-Copyright (c) 2013-2014 Dimension Engineering LLC
+Copyright (c) 2013-2015 Dimension Engineering Inc.
 http://www.dimensionengineering.com/kangaroo
 
 Permission to use, copy, modify, and/or distribute this software for any
@@ -35,7 +35,8 @@ KangarooChannel::KangarooChannel(KangarooSerial& serial, char name, byte address
   }
   
   if ((name >= 'A' && name <= 'Z') ||
-      (name >= '0' && name <= '9'))
+      (name >= '0' && name <= '9') ||
+      (name < 32))
   {
     _name = name;
   }
@@ -51,10 +52,11 @@ KangarooChannel::~KangarooChannel()
 
 }
 
-KangarooError KangarooChannel::start()
+KangarooError KangarooChannel::start(boolean onlyIfNecessary)
 {
   KangarooCommandWriter contents;
-  return set(KANGAROO_CMD_START, contents).status().error();
+  return set(KANGAROO_CMD_START, contents,
+             onlyIfNecessary ? KANGAROO_MOVE_ONLY_IF_NECESSARY : KANGAROO_MOVE_DEFAULT).status().error();
 }
 
 KangarooError KangarooChannel::units(int32_t desiredUnits, int32_t machineUnits)
@@ -65,33 +67,64 @@ KangarooError KangarooChannel::units(int32_t desiredUnits, int32_t machineUnits)
   return set(KANGAROO_CMD_UNITS, contents).status().error();
 }
 
-KangarooMonitor KangarooChannel::home()
+KangarooMonitor KangarooChannel::home(boolean onlyIfNecessary)
 {
   KangarooCommandWriter contents;
-  return set(KANGAROO_CMD_HOME, contents);
+  return set(KANGAROO_CMD_HOME, contents,
+             onlyIfNecessary ? KANGAROO_MOVE_ONLY_IF_NECESSARY : KANGAROO_MOVE_DEFAULT);
 }
 
 KangarooMonitor KangarooChannel::p(int32_t position, int32_t speedLimit, KangarooMoveFlags flags)
 {
-  return motion(0x01, position, 0x02, speedLimit, flags);
+  return motion(0x01, position,
+                 0x02, speedLimit,
+                 0, KANGAROO_UNSPECIFIED_LIMIT,
+                 flags);
 }
 
 KangarooMonitor KangarooChannel::pi(int32_t positionIncrement, int32_t speedLimit, KangarooMoveFlags flags)
 {
-  return motion(0x41, positionIncrement, 0x02, speedLimit, flags);
+  return motion(0x41, positionIncrement,
+                 0x02, speedLimit,
+                 0, KANGAROO_UNSPECIFIED_LIMIT,
+                 flags);
 }
 
-KangarooMonitor KangarooChannel::s(int32_t velocity, int32_t rampLimit, KangarooMoveFlags flags)
+KangarooMonitor KangarooChannel::psi(int32_t positionIncrement, int32_t speedLimit, KangarooMoveFlags flags)
 {
-  return motion(0x02, velocity, 0x03, rampLimit, flags);
+  return motion(0x41, positionIncrement,
+                 0x02, speedLimit,
+                 0, KANGAROO_UNSPECIFIED_LIMIT,
+                 flags);
 }
 
-KangarooMonitor KangarooChannel::si(int32_t velocityIncrement, int32_t rampLimit, KangarooMoveFlags flags)
+KangarooMonitor KangarooChannel::s(int32_t speed, int32_t speedRampingLimit, KangarooMoveFlags flags)
 {
-  return motion(0x42, velocityIncrement, 0x03, rampLimit, flags);
+  return motion(0x02, speed,
+                 0x03, speedRampingLimit,
+                 0, KANGAROO_UNSPECIFIED_LIMIT,
+                 flags);
 }
 
-KangarooMonitor KangarooChannel::motion(byte motionType, int32_t motionValue, byte limitType, int32_t limitValue,
+KangarooMonitor KangarooChannel::si(int32_t speedIncrement, int32_t speedRampingLimit, KangarooMoveFlags flags)
+{
+  return motion(0x42, speedIncrement,
+                 0x03, speedRampingLimit,
+                 0, KANGAROO_UNSPECIFIED_LIMIT,
+                 flags);
+}
+
+KangarooMonitor KangarooChannel::ssi(int32_t speedIncrement, int32_t speedRampingLimit, KangarooMoveFlags flags)
+{
+  return motion(0x42, speedIncrement,
+                 0x03, speedRampingLimit,
+                 0, KANGAROO_UNSPECIFIED_LIMIT,
+                 flags);
+}
+
+KangarooMonitor KangarooChannel::motion(byte motionType, int32_t motionValue,
+                                        byte limit1Type, int32_t limit1Value,
+                                        byte limit2Type, int32_t limit2Value,
                                         KangarooMoveFlags flags)
 {
   KangarooCommandWriter contents;
@@ -99,10 +132,16 @@ KangarooMonitor KangarooChannel::motion(byte motionType, int32_t motionValue, by
   contents.write(motionType);
   contents.writeBitPackedNumber(motionValue);
   
-  if (limitValue >= 0)
+  if (limit1Value >= 0)
   {
-    contents.write(limitType);
-    contents.writeBitPackedNumber(limitValue);
+    contents.write(limit1Type);
+    contents.writeBitPackedNumber(limit1Value);
+  }
+  
+  if (limit2Value >= 0)
+  {
+    contents.write(limit2Type);
+    contents.writeBitPackedNumber(limit2Value);
   }
   
   return set(KANGAROO_CMD_MOVE, contents, flags);

@@ -1,6 +1,6 @@
 /*
 Arduino Library for Kangaroo
-Copyright (c) 2013-2014 Dimension Engineering LLC
+Copyright (c) 2013-2015 Dimension Engineering Inc.
 http://www.dimensionengineering.com/kangaroo
 
 Permission to use, copy, modify, and/or distribute this software for any
@@ -71,10 +71,12 @@ enum KangarooGetType
 {
   KANGAROO_GETP   = 0x01, //!< Absolute position.
   KANGAROO_GETPI  = 0x41, //!< Incremental position (relative to the position when the last command was issued).
-  KANGAROO_GETS   = 0x02, //!< Absolute velocity.
-  KANGAROO_GETSI  = 0x42, //!< Incremental velocity (relative to the speed when the last command was issued).
+  KANGAROO_GETS   = 0x02, //!< Absolute speed (positive or negative depending on direction).
+  KANGAROO_GETSI  = 0x42, //!< Incremental speed (relative to the speed when the last command was issued).
   KANGAROO_GETMIN = 0x08, //!< The minimum position. This corresponds to DEScribe's Nominal Travel minimum.
-  KANGAROO_GETMAX = 0x09  //!< The maximum position. This corresponds to DEScribe's Nominal Travel maximum.
+  KANGAROO_GETMAX = 0x09, //!< The maximum position. This corresponds to DEScribe's Nominal Travel maximum.
+  KANGAROO_GETPS  = 0x05, //!< Setpoint position. 2014-11-13 or newer firmware is required for this request.
+  KANGAROO_GETSS  = 0x06, //!< Setpoint speed. 2014-11-13 or newer firmware is required for this request.
 };
 
 /*!
@@ -96,7 +98,8 @@ Flags that modify the behavior of a motion request.
 enum KangarooMoveFlags
 {
   KANGAROO_MOVE_DEFAULT           = 0x00, //!< Normal behavior.
-  KANGAROO_MOVE_NO_DEFAULT_LIMITS = 0x08, //!< Do not apply the speed limit and speed ramping source settings. By default, the speed limit comes from Kangaroo's potentiometers.
+  KANGAROO_MOVE_ONLY_IF_NECESSARY = 0x04,
+  KANGAROO_MOVE_NO_DEFAULT_LIMITS = 0x08, //!< Do not apply the speed limit and acceleration limit source settings. By default, the speed limit comes from Kangaroo's potentiometers.
   KANGAROO_MOVE_RAW_UNITS         = 0x20, //!< Use raw units. For analog, raw units are millivolts. For quadrature, 4 raw units equal 1 line.
   KANGAROO_MOVE_SEQUENCE_CODE     = 0x40
 };
@@ -458,10 +461,12 @@ public:
 public:
   /*!
   Starts the channel. Also, the Kangaroo LED will shine brightly for a third of a second.
+  \param onlyIfNecessary Whether the channel should only be started if necessary. If true, and it is already started, it will not be restarted.
+                         This option requires 2014-11-13 or newer firmware.
   \return A KangarooError.
           Most commonly, this will be KANGAROO_NO_ERROR if the channel does not require homing, or KANGAROO_NOT_HOMED if it does.
   */
-  KangarooError start();
+  KangarooError start(bool onlyIfNecessary = false);
   
   /*!
   Sets custom units for the channel.
@@ -477,53 +482,87 @@ public:
   
   /*!
   Homes the channel.
+  \param onlyIfNecessary Whether or not the channel should only be homed if necessary. If true, and it has already been homed, it will not be rehomed.
+                         This option requires 2014-11-13 or newer firmware.
   \return A KangarooMonitor for tracking the homing request.
           The easiest way to use the KangarooMonitor here is to call KangarooMonitor::wait().
   */
-  KangarooMonitor home();
+  KangarooMonitor home(bool onlyIfNecessary = false);
    
   /*!
   Moves to the specified absolute position.
   This command is most useful for absolutely-positioned systems.
-  \param position   The position to move to.
-  \param speedLimit The speed limit for the move.
-  \param flags      Modifiers for the move command.
+  \param position          The position to move to.
+  \param speedLimit        The speed limit for the move.
+  \param flags             Modifiers for the move command.
   \return A KangarooMonitor for tracking the move request.
   */
-  KangarooMonitor p(int32_t position, int32_t speedLimit = KANGAROO_UNSPECIFIED_LIMIT, KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
+  KangarooMonitor p(int32_t position,
+                    int32_t speedLimit = KANGAROO_UNSPECIFIED_LIMIT,
+                    KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
   
   /*!
-  Makes an incremental move.
-  This command is useful any time you want to make a motion relative to where you are right now.
+  Makes an incremental move, relative to where you are right now.
   Rovers are a case where this is almost always what you want.
   \param positionIncrement The amount to increment the current position by.
   \param speedLimit        The speed limit for the move.
   \param flags             Modifiers for the move command.
   \return A KangarooMonitor for tracking the move request.
   */
-  KangarooMonitor pi(int32_t positionIncrement, int32_t speedLimit = KANGAROO_UNSPECIFIED_LIMIT, KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
+  KangarooMonitor pi(int32_t positionIncrement,
+                     int32_t speedLimit = KANGAROO_UNSPECIFIED_LIMIT,
+                     KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
   
   /*!
-  Moves at a particular speed.
-  \param velocity  The speed to move at.
-  \param rampLimit The max rate at which to change the commanded speed.
-  \param flags     Modifiers for the move command.
-  \return A KangarooMonitor for tracking the move request.
-  */
-  KangarooMonitor s(int32_t velocity, int32_t rampLimit  = KANGAROO_UNSPECIFIED_LIMIT, KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
-
-  /*!
-  Moves at a particular speed, incremental from the current speed.
-  This is useful for cruise control: a negative increment will slow down,
-                                     a positive increment will speed up,
-                                     and a zero increment will hold the current speed.
-  \param velocityIncrement The amount to increment the current speed by.
-  \param rampLimit         The max rate at which to change the commanded speed.
+  Makes an incremental move, relative to the current position setpoint.
+  This is useful for conveyors.
+  2014-11-13 or newer firmware is required for this command.
+  \param positionIncrement The amount to increment the current position by.
+  \param speedLimit        The speed limit for the move.
   \param flags             Modifiers for the move command.
   \return A KangarooMonitor for tracking the move request.
   */
-  KangarooMonitor si(int32_t velocityIncrement, int32_t rampLimit  = KANGAROO_UNSPECIFIED_LIMIT, KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
+  KangarooMonitor psi(int32_t positionIncrement,
+                      int32_t speedLimit = KANGAROO_UNSPECIFIED_LIMIT,
+                      KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
+                     
+  /*!
+  Moves at a particular speed.
+  \param speed             The speed to move at.
+  \param speedRampingLimit The speed ramping limit for the move.
+  \param flags             Modifiers for the move command.
+  \return A KangarooMonitor for tracking the move request.
+  */
+  KangarooMonitor s(int32_t speed,
+                    int32_t speedRampingLimit = KANGAROO_UNSPECIFIED_LIMIT,
+                    KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
 
+  /*!
+  Moves at a particular speed, incremental from the current speed.
+  \param speedIncrement    The amount to increment the current speed by.
+  \param speedRampingLimit The speed ramping limit for the move.
+  \param flags             Modifiers for the move command.
+  \return A KangarooMonitor for tracking the move request.
+  */
+  KangarooMonitor si(int32_t speedIncrement,
+                     int32_t speedRampingLimit = KANGAROO_UNSPECIFIED_LIMIT,
+                     KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
+
+  /*!
+  Moves at a particular speed, incremental from the current speed setpoint.
+  This is useful for cruise control: a negative increment will slow down,
+                                     a positive increment will speed up,
+                                     and a zero increment will hold the current speed.
+  2014-11-13 or newer firmware is required for this command.
+  \param speedIncrement    The amount to increment the current speed by.
+  \param speedRampingLimit The speed ramping limit for the move.
+  \param flags             Modifiers for the move command.
+  \return A KangarooMonitor for tracking the move request.
+  */
+  KangarooMonitor ssi(int32_t speedIncrement,
+                      int32_t speedRampingLimit = KANGAROO_UNSPECIFIED_LIMIT,
+                      KangarooMoveFlags flags = KANGAROO_MOVE_DEFAULT);
+                     
 public:
   /*!
   Issues a 'get' request.
@@ -554,6 +593,17 @@ public:
   }
   
   /*!
+  Gets the setpoint position.
+  2014-11-13 or newer firmware is required for this request.
+  \param flags Flags modifying the 'get' request.
+  \return A KangarooStatus object describing the position.
+  */  
+  inline KangarooStatus getPS(KangarooGetFlags flags = KANGAROO_GET_DEFAULT)
+  {
+    return get(KANGAROO_GETPS, flags);
+  }
+  
+  /*!
   Gets the absolute speed (positive or negative depending on direction).
   \param flags Flags modifying the 'get' request.
   \return A KangarooStatus object describing the speed.
@@ -571,6 +621,17 @@ public:
   inline KangarooStatus getSI(KangarooGetFlags flags = KANGAROO_GET_DEFAULT)
   {
     return get(KANGAROO_GETSI, flags);
+  }
+  
+  /*!
+  Gets the setpoint speed.
+  2014-11-13 or newer firmware is required for this request.
+  \param flags Flags modifying the 'get' request.
+  \return A KangarooStatus object describing the speed.
+  */
+  inline KangarooStatus getSS(KangarooGetFlags flags = KANGAROO_GET_DEFAULT)
+  {
+    return get(KANGAROO_GETSS, flags);
   }
   
   /*!
@@ -598,8 +659,10 @@ public:
   // The contrast between 'p' and 'getP' may confuse as well, so we include these to make life easier for everyone.
   inline KangarooStatus getp  (KangarooGetFlags flags = KANGAROO_GET_DEFAULT) { return getP  (flags); }
   inline KangarooStatus getpi (KangarooGetFlags flags = KANGAROO_GET_DEFAULT) { return getPI (flags); }
+  inline KangarooStatus getps (KangarooGetFlags flags = KANGAROO_GET_DEFAULT) { return getPS (flags); }
   inline KangarooStatus gets  (KangarooGetFlags flags = KANGAROO_GET_DEFAULT) { return getS  (flags); }  
   inline KangarooStatus getsi (KangarooGetFlags flags = KANGAROO_GET_DEFAULT) { return getSI (flags); }
+  inline KangarooStatus getss (KangarooGetFlags flags = KANGAROO_GET_DEFAULT) { return getSS (flags); }
   inline KangarooStatus getmin(KangarooGetFlags flags = KANGAROO_GET_DEFAULT) { return getMin(flags); }
   inline KangarooStatus getmax(KangarooGetFlags flags = KANGAROO_GET_DEFAULT) { return getMax(flags); }
 
@@ -684,7 +747,10 @@ public:
 
 private:
   KangarooStatus  getSpecial(KangarooGetType type, KangarooGetFlags flags, const KangarooTimeout& timeout);
-  KangarooMonitor motion    (byte motionType, int32_t motionValue, byte limitType, int32_t limitValue, KangarooMoveFlags flags);
+  KangarooMonitor motion    (byte motionType, int32_t motionValue,
+                             byte limit1Type, int32_t limit1Value,
+                             byte limit2Type, int32_t limit2Value,
+                             KangarooMoveFlags flags);
   KangarooMonitor set       (KangarooCommand        command,
                              KangarooCommandWriter& contents,
                              KangarooMoveFlags      moveFlags = KANGAROO_MOVE_DEFAULT,
@@ -723,6 +789,13 @@ class KangarooMonitor
 {
   friend class KangarooChannel;
 
+public:
+  /*!
+  Constructs a KangarooMonitor object.
+  This must be assigned before it will be valid.
+  */
+  KangarooMonitor();
+  
 public:
   /*!
   Gets the most recently received status.

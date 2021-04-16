@@ -40,7 +40,7 @@ void loop()
   // rate is more important than if a few intermediates are lost.
   K1.streaming(true);
   
-  // Let's inch along one tick at a time in this example.
+  // Let's inch along one line at a time in this example.
   // In the real world you may want to send the Kangaroo movements
   // from a joystick, your robot's inverse kinematics routines, etc.
   for (long position = minimum; position <= maximum; position ++)

@@ -26,8 +26,8 @@ void setup()
   Drive.start();
   Turn.start();
   
-  Drive.si(0);
-  Turn.si(0);
+  Drive.pi(0);
+  Turn.pi(0);
 }
 
 void loop()
