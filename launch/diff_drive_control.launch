@@ -3,23 +3,17 @@
     <arg name="model" default="$(find kangaroo_x2_driver)/urdf/kangaroo_diff_drive.xacro"/>
     <arg name="cmd_vel_topic" default="cmd_vel"/>
 
-    <param name = "serialPort" value ="/dev/ttyUSB0" type = "str"/>
-    <param name = "baudRate" value = "9600" type = "double"/>
-    <param name = "ticksPerWheelRev" value = "12000" type = "int"/>
-
     <rosparam file="$(find kangaroo_x2_driver)/config/diff_drive_control.yaml" command="load"/>
 
     <node pkg="kangaroo_x2_driver" type="kangaroo_driver_node" name="kangaroo_node" respawn="true" respawn_delay="10">
-	<remap from="diff_drive_controller/cmd_vel" to="$(arg cmd_vel_topic)"/>
-	<remap from="diff_drive_controller/odom" to="kangaroo_odom"/>
-    </node>    
+        <remap from="diff_drive_controller/cmd_vel" to="$(arg cmd_vel_topic)"/>
+        <remap from="diff_drive_controller/odom" to="kangaroo_odom"/>
+    </node>
 
-    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
-      respawn="false"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false"/>
 
-    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
-        output="screen" args="diff_drive_controller joint_state_controller"/>
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="diff_drive_controller joint_state_controller"/>
 
-    <param name="robot_description" command="$(find xacro)/xacro.py '$(arg model)'" />
+    <param name="robot_description" command="$(find xacro)/xacro '$(arg model)'" />
 
 </launch>
