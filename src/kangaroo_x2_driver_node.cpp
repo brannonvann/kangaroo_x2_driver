@@ -153,8 +153,8 @@ private:
     void startChannels()
     {
         ROS_INFO_STREAM("Starting Kangaroo channels");
-        K1.start(true);
-        K2.start(true);
+        K1.start(false);
+        K2.start(false);
     }
 };
 
