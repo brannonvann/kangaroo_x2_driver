@@ -42,6 +42,7 @@ public:
                                                                         K2(K, '2')
     {
 
+        ros::NodeHandle nh;
         startChannels();
 
         //Ticks to radians conversion: determined by rotating wheel 10 timees,
@@ -60,18 +61,24 @@ public:
         cmd_[0] = 0.0;
         cmd_[1] = 0.0;
 
-        hardware_interface::JointStateHandle state_handle_1("motor_1_joint", &pos_[0], &vel_[0], &eff_[0]);
+        string motor1Joint;
+        nh.getParam("/kangaroo_x2_driver/motor_1_joint", motor1Joint);
+
+        string motor2Joint;
+        nh.getParam("/kangaroo_x2_driver/motor_2_joint", motor2Joint);
+
+        hardware_interface::JointStateHandle state_handle_1(motor1Joint, &pos_[0], &vel_[0], &eff_[0]);
         jnt_state_interface_.registerHandle(state_handle_1);
 
-        hardware_interface::JointStateHandle state_handle_2("motor_2_joint", &pos_[1], &vel_[1], &eff_[1]);
+        hardware_interface::JointStateHandle state_handle_2(motor2Joint, &pos_[1], &vel_[1], &eff_[1]);
         jnt_state_interface_.registerHandle(state_handle_2);
 
         registerInterface(&jnt_state_interface_);
 
-        hardware_interface::JointHandle vel_handle_1(jnt_state_interface_.getHandle("motor_1_joint"), &cmd_[0]);
+        hardware_interface::JointHandle vel_handle_1(jnt_state_interface_.getHandle(motor1Joint), &cmd_[0]);
         jnt_vel_interface_.registerHandle(vel_handle_1);
 
-        hardware_interface::JointHandle vel_handle_2(jnt_state_interface_.getHandle("motor_2_joint"), &cmd_[1]);
+        hardware_interface::JointHandle vel_handle_2(jnt_state_interface_.getHandle(motor2Joint), &cmd_[1]);
         jnt_vel_interface_.registerHandle(vel_handle_2);
 
         registerInterface(&jnt_vel_interface_);
